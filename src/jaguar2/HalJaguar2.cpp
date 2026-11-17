@@ -1129,8 +1129,18 @@ void HalJaguar2::set_channel_bw(uint8_t channel, uint8_t bw, uint8_t rfe_type,
    * 5G those bits are the real band indicator and must be kept (masking them was
    * what left the 5G synth in 2.4G mode -> dead 5G RX). Net: devourer's RF18 now
    * matches the vendor's per-band value. */
-  if (g2)
+  if (g2) {
     rf18 &= 0x00060cffu;
+  } else {
+    /* Set the 5G band bits explicitly (rtw88 rtw8822b_set_channel_rf:
+     * RF18_BAND_MASK = BIT(16) | BIT(9) | BIT(8), RF18_BAND_5G = BIT(16) |
+     * BIT(8)). Keeping them from the read-back only works while the synth is
+     * already on 5G: any 2.4G set above clears them, so a 2.4G -> 5G retune
+     * used to leave the synth in 2.4G mode with RX dead (T3U / 8812BU, ch 6 ->
+     * 44 and 6 -> 149: zero frames until a fresh bring-up). */
+    rf18 &= ~((1u << 16) | (1u << 9) | (1u << 8));
+    rf18 |= (1u << 16) | (1u << 8);
+  }
 
   /* 5/10 MHz: the RF synth only re-latches its internal channel state on an
    * RF18 VALUE EDGE — a same-value rewrite does nothing, and after the

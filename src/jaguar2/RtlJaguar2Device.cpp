@@ -1090,6 +1090,7 @@ void RtlJaguar2Device::SetMonitorChannel(SelectedChannel channel) {
    * Ordering is always the family's register lock first, then this one. */
   std::lock_guard<std::mutex> ccx(busy_window_mutex());
   busy_window_note_retune();
+  const bool band_change = (_channel.Channel <= 14) != (channel.Channel <= 14);
   _channel = channel;
   /* Retune the RF/BB to the new channel. set_channel_bw is a pure tune (RF18 +
    * bandwidth registers) — no per-channel LCK/IQK/TX-power — so it is cheap
@@ -1109,6 +1110,8 @@ void RtlJaguar2Device::SetMonitorChannel(SelectedChannel channel) {
    * layout comments them out). */
   _rx_bw_code.store(channel_width_to_bw_code(channel.ChannelWidth),
                     std::memory_order_relaxed);
+  if (band_change)
+    regrant_antenna_for_band();
   /* Runtime TX-power knobs in use: re-fold them against the NEW channel's
    * efuse group so the offset stays relative to the calibrated table (TXAGC
    * registers are not per-channel — a cross-group move would otherwise keep
@@ -1143,6 +1146,8 @@ void RtlJaguar2Device::FastRetune(uint8_t channel, bool cache_rf) {
     if (band_change && _brought_up &&
         (_tx_pwr_offset_steps != 0 || _tx_pwr_override >= 0 || _rate_diffs_on))
       apply_tx_power_current();
+    if (band_change)
+      regrant_antenna_for_band();
     return;
   }
   /* Fast path declined (band change / never tuned) — full channel set at the
@@ -1150,6 +1155,18 @@ void RtlJaguar2Device::FastRetune(uint8_t channel, bool cache_rf) {
   _channel.Channel = channel;
   _hal.set_channel_bw(channel, static_cast<uint8_t>(_channel.ChannelWidth),
                       _rfe, _channel.ChannelOffset);
+  if (band_change)
+    regrant_antenna_for_band();
+}
+
+/* The WL-only antenna grant (0xcbc[9:8], hal8822b_wifi_only_switch_antenna) is
+ * band-keyed. Bring-up grants it for the bring-up band; the vendor re-grants on
+ * every band switch (hal_btcoex_wifionly_switchband_notify), so a cross-band
+ * retune does the same. Caller holds _reg_mu. */
+void RtlJaguar2Device::regrant_antenna_for_band() {
+  if (!_brought_up || _cfg.tuning.skip_coex)
+    return;
+  _hal.coex_wlan_only(_channel.Channel > 14);
 }
 
 void RtlJaguar2Device::FastSetBandwidth(ChannelWidth_t bw) {

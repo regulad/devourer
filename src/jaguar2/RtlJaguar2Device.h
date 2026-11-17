@@ -339,6 +339,9 @@ private:
    * path with the offset folded. Called from bring_up and live from the
    * setters/SetMonitorChannel. */
   void apply_tx_power_current();
+  /* Re-apply the band-keyed WL-only antenna grant after a cross-band retune
+   * (caller holds _reg_mu). */
+  void regrant_antenna_for_band();
   /* rfe_type resolved during bring_up (efuse + DEVOURER_RFE), cached so
    * SetMonitorChannel can retune (set_channel_bw needs it). */
   uint8_t _rfe = 0;
