@@ -251,6 +251,8 @@ public:
    * verbatim from ex_hal8822b_wifi_only_hw_config: switch to WL-side controller,
    * gnt_wl=1/gnt_bt=0, antenna mux to WL. Must run before enable_rx. */
   void coex_wlan_only(bool is_5g);
+  /* The band-change half of coex_wlan_only (the antenna switch only). */
+  void coex_switch_antenna(bool is_5g);
 
   /* phydm_rfe_8822b_init: RFE chip-top-mux init (0x64/0x4c/0x40 top mux, 0x1990
    * s0/s1 select, 0x974 in/out). The kernel runs this from odm_dm_init

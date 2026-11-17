@@ -2067,6 +2067,20 @@ void HalJaguar2::coex_wlan_only(bool is_5g) {
                 is_5g ? 1 : 0);
 }
 
+/* The band-keyed half alone: what the vendor's switchband (and scan and
+ * connect) notify runs, hal8822b_wifi_only_switch_antenna; hw_config is
+ * applied once, at init (halbtc8822bwifionly.c). A band change needs only
+ * this one field. Re-running the whole grant cost a cross-band firmware hop
+ * ~6 ms of USB control transfers on an 8812BU under Windows. The 8821C keeps
+ * its full grant (its split is not ported here). */
+void HalJaguar2::coex_switch_antenna(bool is_5g) {
+  if (_variant == ChipVariant::C8821C) {
+    coex_wlan_only_8821c(is_5g);
+    return;
+  }
+  _device.phy_set_bb_reg(0x0cbc, 0x300, is_5g ? 0x1 : 0x2);
+}
+
 /* ex_hal8821c_wifi_only_hw_config + hal8821c_wifi_only_switch_antenna
  * (reference/8821cu/hal/btc/halbtc8821cwifionly.c). The 8821C wifi-only coex
  * differs from the 8822B: the GNT/owner and the SPDT/DPDT external-antenna

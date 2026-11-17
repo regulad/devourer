@@ -1160,13 +1160,14 @@ void RtlJaguar2Device::FastRetune(uint8_t channel, bool cache_rf) {
 }
 
 /* The WL-only antenna grant (0xcbc[9:8], hal8822b_wifi_only_switch_antenna) is
- * band-keyed. Bring-up grants it for the bring-up band; the vendor re-grants on
- * every band switch (hal_btcoex_wifionly_switchband_notify), so a cross-band
+ * band-keyed. Bring-up applies the whole grant for the bring-up band; on every
+ * band switch the vendor re-runs only the antenna switch
+ * (hal_btcoex_wifionly_switchband_notify -> switch_antenna), so a cross-band
  * retune does the same. Caller holds _reg_mu. */
 void RtlJaguar2Device::regrant_antenna_for_band() {
   if (!_brought_up || _cfg.tuning.skip_coex)
     return;
-  _hal.coex_wlan_only(_channel.Channel > 14);
+  _hal.coex_switch_antenna(_channel.Channel > 14);
 }
 
 void RtlJaguar2Device::FastSetBandwidth(ChannelWidth_t bw) {
